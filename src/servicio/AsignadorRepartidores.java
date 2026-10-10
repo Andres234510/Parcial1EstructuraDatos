@@ -1,14 +1,13 @@
 package servicio;
 
-import estructuras.ListaSimple;
 import modelo.Paquete;
 import modelo.Repartidor;
 
-public class AsiganadorRepartidores {
+public class AsignadorRepartidores {
     //clase auxiliar
     private CentroDistribucion centroDistribucion;
 
-    public AsiganadorRepartidores(CentroDistribucion centroDistribucion) {
+    public AsignadorRepartidores(CentroDistribucion centroDistribucion) {
         this.centroDistribucion = centroDistribucion;
     }
     public Repartidor asignarPaquete(String codigo) {
