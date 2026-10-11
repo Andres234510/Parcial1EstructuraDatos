@@ -1,179 +1,153 @@
 package servicio;
 
+import algoritmos.AlgoritmosRecursivos;
+import algoritmos.BusquedaBinaria;
+import algoritmos.DivideVenceras;
 import comparadores.ComparadoresPaquete;
 import estructuras.ListaSimple;
 import modelo.Paquete;
 import modelo.Repartidor;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 
+/**
+ * Coordinador principal del sistema QuindioExpress.
+ *
+ * Une los servicios (GestorPaquetes, GestorRepartidores) y los algoritmos
+ * (recursivos, búsqueda binaria, divide y vencerás).
+ */
 public class CentroDistribucion {
 
-    private String nombre;
+    private final GestorPaquetes gestorPaquetes;
+    private final GestorRepartidores gestorRepartidores;
 
-    // Orden exacto de registro (también se pasa a los algoritmos recursivos)
-    private final List<Paquete> paquetesRegistrados;
-
-    // Consulta por código, validación de duplicados y código -> Paquete
-    private final Map<String, Paquete> paquetesPorCodigo;
-
-    // Municipios sin repetir
-    private final Set<String> municipios;
-
-    // Municipios en orden alfabético y sin repetir
-    private final Set<String> municipiosOrdenados;
-
-    // Municipio -> códigos de sus paquetes
-    private final Map<String, Set<String>> codigosPorMunicipio;
-
-    // Atención por orden de llegada
-    private final Queue<Paquete> colaLlegada;
-
-    // Despacho prioritario: prioridad, tiempo y código
-    private final PriorityQueue<Paquete> colaDespacho;
-
-    // Repartidores por identificación (única)
-    private final Map<String, Repartidor> repartidores;
-
-    // Código del paquete en camino -> repartidor que lo lleva
-    private final Map<String, Repartidor> asignaciones;
-
-    // Historial de entregas (lista propia)
-    private final ListaSimple<Paquete> historialEntrega;
-
-    public CentroDistribucion(String nombre) {
-        this.nombre = nombre;
-        this.paquetesRegistrados = new ArrayList<>();
-        this.paquetesPorCodigo = new HashMap<>();
-        this.municipios = new HashSet<>();
-        this.municipiosOrdenados = new TreeSet<>();
-        this.codigosPorMunicipio = new HashMap<>();
-        this.colaLlegada = new ArrayDeque<>();
-        this.colaDespacho = new PriorityQueue<>(ComparadoresPaquete.DESPACHO_PRIORITARIO);
-        this.repartidores = new LinkedHashMap<>();
-        this.asignaciones = new HashMap<>();
-        this.historialEntrega = new ListaSimple<>();
+    public CentroDistribucion() {
+        this.gestorPaquetes = new GestorPaquetes();
+        this.gestorRepartidores = new GestorRepartidores();
     }
 
-    // ---------------- Registro ----------------
+    // ---------------- REGISTRO ----------------
 
-    /** @return false si el paquete es nulo o el código ya existe. */
-    public boolean registrarPaquete(Paquete paquete) {
-        if (paquete == null || paquetesPorCodigo.containsKey(paquete.getCodigo())) {
-            return false;
+    public void registrarPaquete(Paquete p) {
+        gestorPaquetes.registrar(p);
+    }
+
+    public void registrarRepartidor(Repartidor r) {
+        gestorRepartidores.registrar(r);
+    }
+
+    // ---------------- CONSULTAS ----------------
+
+    public Paquete consultarPaquete(String codigo) {
+        return gestorPaquetes.consultar(codigo);
+    }
+
+    public Repartidor consultarRepartidor(String identificacion) {
+        return gestorRepartidores.consultar(identificacion);
+    }
+
+    // ---------------- MUNICIPIOS ----------------
+
+    public Set<String> municipiosUnicos() {
+        return gestorPaquetes.getMunicipiosUnicos();
+    }
+
+    public Set<String> municipiosOrdenados() {
+        return gestorPaquetes.getMunicipiosOrdenados();
+    }
+
+    public List<Paquete> paquetesDeMunicipio(String municipio) {
+        return gestorPaquetes.getPaquetesPorMunicipio(municipio);
+    }
+
+    // ---------------- ATENCIÓN ----------------
+
+    public Paquete atenderPorLlegada() {
+        return gestorPaquetes.atenderPorLlegada();
+    }
+
+    public Paquete despacharPrioritario() {
+        return gestorPaquetes.despacharPrioritario();
+    }
+
+    // ---------------- HISTORIAL ----------------
+
+    public void registrarEntrega(Paquete p) {
+        gestorPaquetes.registrarEntrega(p);
+    }
+
+    public ListaSimple<Paquete> getHistorial() {
+        return gestorPaquetes.getHistorial();
+    }
+
+    public void mostrarHistorial() {
+        System.out.println("Historial de entregas:");
+        for (Paquete p : gestorPaquetes.getHistorial()) {
+            System.out.println("  " + p);
         }
-        paquetesRegistrados.add(paquete);
-        paquetesPorCodigo.put(paquete.getCodigo(), paquete);
-
-        String destino = paquete.getDestino();
-        municipios.add(destino);
-        municipiosOrdenados.add(destino);
-        codigosPorMunicipio
-                .computeIfAbsent(destino, k -> new LinkedHashSet<>())
-                .add(paquete.getCodigo());
-
-        colaLlegada.offer(paquete);
-        colaDespacho.offer(paquete);
-        return true;
     }
 
-    /** @return false si es nulo o la identificación ya existe. */
-    public boolean registrarRepartidor(Repartidor repartidor) {
-        if (repartidor == null || repartidores.containsKey(repartidor.getIdentificacion())) {
-            return false;
-        }
-        repartidores.put(repartidor.getIdentificacion(), repartidor);
-        return true;
+    // ---------------- ASIGNACIÓN ----------------
+
+    public boolean asignarPaquete(String codigo, String identificacionRepartidor) {
+        Paquete p = gestorPaquetes.consultar(codigo);
+        Repartidor r = gestorRepartidores.consultar(identificacionRepartidor);
+        return gestorRepartidores.asignar(p, r);
     }
 
-    // ---------------- Consultas ----------------
-
-    /** O(1) promedio gracias al HashMap. */
-    public Paquete buscarPaquetePorCodigo(String codigo) {
-        return paquetesPorCodigo.get(codigo);
+    public Repartidor asignarAutomatico(String codigo) {
+        Paquete p = gestorPaquetes.consultar(codigo);
+        return gestorRepartidores.asignarAutomatico(p);
     }
 
-    public Set<String> getCodigosDeMunicipio(String municipio) {
-        Set<String> codigos = codigosPorMunicipio.get(municipio);
-        return codigos == null ? Collections.emptySet() : Collections.unmodifiableSet(codigos);
-    }
+    // ---------------- ORDENAMIENTOS ----------------
 
-    public Set<String> getMunicipios() {
-        return Collections.unmodifiableSet(municipios);
-    }
-
-    public Set<String> getMunicipiosOrdenados() {
-        return Collections.unmodifiableSet(municipiosOrdenados);
-    }
-
-    /** Orden de registro original. */
-    public List<Paquete> getPaquetesRegistrados() {
-        return Collections.unmodifiableList(paquetesRegistrados);
-    }
-
-    /** Copia ordenada por código (orden natural). Precondición de la búsqueda binaria. */
-    public List<Paquete> getPaquetesOrdenadosPorCodigo() {
-        List<Paquete> copia = new ArrayList<>(paquetesRegistrados);
-        Collections.sort(copia);
+    public List<Paquete> ordenarPorPrioridad(List<Paquete> paquetes) {
+        List<Paquete> copia = new ArrayList<>(paquetes);
+        copia.sort(ComparadoresPaquete.POR_PRIORIDAD_DESC);
         return copia;
     }
 
-    /** Copia ordenada con un criterio alternativo (Comparator). */
-    public List<Paquete> getPaquetesOrdenados(Comparator<Paquete> criterio) {
-        List<Paquete> copia = new ArrayList<>(paquetesRegistrados);
-        copia.sort(criterio);
+    public List<Paquete> ordenarPorPeso(List<Paquete> paquetes) {
+        List<Paquete> copia = new ArrayList<>(paquetes);
+        copia.sort(ComparadoresPaquete.POR_PESO_DESC);
         return copia;
     }
 
-    public Collection<Repartidor> getRepartidores() {
-        return Collections.unmodifiableCollection(repartidores.values());
+    public List<Paquete> ordenarPorTiempo(List<Paquete> paquetes) {
+        List<Paquete> copia = new ArrayList<>(paquetes);
+        copia.sort(ComparadoresPaquete.POR_TIEMPO_ASC);
+        return copia;
     }
 
-    public ListaSimple<Paquete> getHistorialEntrega() {
-        return historialEntrega;
+    // ---------------- ALGORITMOS ----------------
+
+    public double pesoTotalPorMunicipio(String municipio) {
+        List<Paquete> lista = gestorPaquetes.getPaquetesPorMunicipio(municipio);
+        return AlgoritmosRecursivos.pesoTotal(lista, 0);
+    }
+    public int contarPaquetesConPrioridadMinima(int prioridadMinima) {
+        List<Paquete> lista = new ArrayList<>(gestorPaquetes.getPorCodigo().values());
+        return AlgoritmosRecursivos.contarPorPrioridad(lista, prioridadMinima, 0);
     }
 
-    public String getNombre() {
-        return nombre;
+    public Paquete buscarBinario(String codigo) {
+        List<Paquete> ordenados = new ArrayList<>(gestorPaquetes.getPorCodigo().values());
+        Collections.sort(ordenados);
+        return BusquedaBinaria.buscar(ordenados, codigo);
     }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
+    public Paquete paqueteMayorPeso() {
+        List<Paquete> lista = new ArrayList<>(gestorPaquetes.getPorCodigo().values());
+        if (lista.isEmpty()) return null;
+        return DivideVenceras.mayorPeso(lista, 0, lista.size() - 1);
     }
 
-    // ---------------- Atención ----------------
+    // ---------------- GETTERS ----------------
 
-    /** Siguiente por orden de llegada, sin retirarlo. */
-    public Paquete verSiguientePorLlegada() {
-        return colaLlegada.peek();
-    }
-
-    /** Siguiente por prioridad, tiempo y código, sin retirarlo. */
-    public Paquete verSiguientePrioritario() {
-        return colaDespacho.peek();
-    }
-
-    /** Retira el paquete de ambas colas. @return false si no estaba pendiente. */
-    boolean retirarDePendientes(Paquete paquete) {
-        boolean estaba = colaLlegada.remove(paquete);   // O(n)
-        colaDespacho.remove(paquete);                   // O(n)
-        return estaba;
-    }
-
-    void registrarAsignacion(Paquete paquete, Repartidor repartidor) {
-        asignaciones.put(paquete.getCodigo(), repartidor);
-    }
-
-    // ---------------- Entrega ----------------
-
-    /** Pasa un paquete en camino al historial y libera al repartidor. */
-    public boolean registrarEntrega(String codigo) {
-        Repartidor repartidor = asignaciones.remove(codigo);
-        if (repartidor == null) {
-            return false;                               // no estaba asignado
-        }
-        historialEntrega.agregar(paquetesPorCodigo.get(codigo));
-        repartidor.setDisponible(true);
-        return true;
-    }
+    public GestorPaquetes getGestorPaquetes() { return gestorPaquetes; }
+    public GestorRepartidores getGestorRepartidores() { return gestorRepartidores; }
 }
