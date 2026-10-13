@@ -7,7 +7,7 @@ Aplicación en Java que organiza la información de una jornada de trabajo de un
 ## Integrantes
 
 - Andrés Felipe Gutiérrez Vera
-- _[Nombre del compañero/a]_
+- Sofia Cabezas
 
 ## Requisitos
 
